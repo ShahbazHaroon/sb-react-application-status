@@ -1,0 +1,58 @@
+name: sb-react-application-status
+
+services:
+  backend:
+    build:
+      context: ./application-status-be
+      args:
+        APP_NAME: ${APP_NAME:?APP_NAME is required}
+    image: ${APP_NAME}-backend:${APP_MODE:?APP_MODE is required}
+    container_name: ${APP_NAME}-backend
+    expose:
+      - "${SERVER_PORT:-8080}"
+    env_file:
+      - .env.${ENV:?ENV is required}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:${SERVER_PORT:-8080}${API_CONTEXT_PATH:-/app}/api/v1/status || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+    volumes:
+      - backend-logs:/var/log
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./application-status-fe
+      target: nginx-runtime           # static files served by nginx
+      args:
+        APP_MODE: ${APP_MODE:?APP_MODE is required}
+        NGINX_CONF: nginx/nginx.reverse-proxy.conf
+        #VITE_API_BASE_URL_OVERRIDE: ""      # same-origin calls via nginx
+    image: ${APP_NAME}-frontend-proxy:${APP_MODE}
+    container_name: ${APP_NAME}-frontend
+    ports:
+        - "${FRONTEND_HOST_PORT:-5173}:80"
+    depends_on:
+        backend:
+          condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+        - app-network
+    restart: unless-stopped
+
+networks:
+  app-network:
+    name: ${APP_NAME}-${APP_MODE}-network
+    driver: bridge
+
+volumes:
+  backend-logs:
