@@ -1,4 +1,6 @@
-# ---------- Stage 1: build ----------
+# --------------------------------------------------
+# Build stage
+# --------------------------------------------------
 FROM node:20-alpine AS build
 WORKDIR /app
 
@@ -28,23 +30,31 @@ RUN test -n "$APP_MODE" || \
 RUN echo "Building frontend with Vite mode: ${APP_MODE}" && \
     npx vite build --mode "${APP_MODE}"
 
-# ---------- Stage 2a: serve with Node (NO nginx) ----------
+# --------------------------------------------------
+# Runtime stage 2a: serve with Node (NO nginx)
+# --------------------------------------------------
 FROM node:20-alpine AS node-runtime
 WORKDIR /app
 RUN npm install -g serve@14
+# Copy built app from builder stage
 COPY --from=build --chown=node:node /app/dist ./dist
 USER node
 EXPOSE 5173
 # -s = single-page-app fallback to index.html
 CMD ["serve", "-s", "dist", "-l", "5173"]
 
-# ---------- Stage 2b: serve with nginx ----------
+# --------------------------------------------------
+# Runtime stage 2b: serve with nginx
+# --------------------------------------------------
 FROM nginx:1.27-alpine AS nginx-runtime
 
 ARG NGINX_CONF=nginx/nginx.conf
 
+## Remove default config
 RUN rm /etc/nginx/conf.d/default.conf
+# Copy custom nginx config
 COPY ${NGINX_CONF} /etc/nginx/conf.d/default.conf
+# Copy built app from builder stage
 COPY --from=build /app/dist /usr/share/nginx/html
 
 EXPOSE 80

@@ -1,6 +1,6 @@
-# --------------------
+# --------------------------------------------------
 # Build stage
-# --------------------
+# --------------------------------------------------
 FROM maven:3.9.9-eclipse-temurin-17 AS builder
 
 # Set the working directory inside the container
@@ -25,9 +25,9 @@ RUN --mount=type=cache,target=/root/.m2 mvn clean package -DskipTests -B
 # Get the final JAR name from Maven
 RUN echo "Final JAR:" && ls -l target
 
-# --------------------
+# --------------------------------------------------
 # Runtime stage
-# --------------------
+# --------------------------------------------------
 FROM eclipse-temurin:17-jre-jammy AS runtime
 
 #ARG APP_NAME=application-status-be
